@@ -16,13 +16,12 @@ public class Encoder {
     public void setInputFile(String inputFile) throws Exception {
         // Throw Exception if file does not exist/or is a directory
         File f = new File(inputFile);
-        if(!f.exists() || f.isDirectory()) {
+        if (!f.exists() || f.isDirectory()) {
             throw new Exception("File not found");
         } else {
             this.inputFile = inputFile;
         }
     }
-
 
     public String getMappingFile() {
         return mappingFile;
@@ -31,13 +30,12 @@ public class Encoder {
     public void setMappingFile(String mappingFile) throws Exception {
         // Throw exception if the file doesn't exist/or is a directory
         File f = new File(mappingFile);
-        if(!f.exists() || f.isDirectory()) {
+        if (!f.exists() || f.isDirectory()) {
             throw new Exception("File not found");
         } else {
             this.mappingFile = mappingFile;
         }
     }
-
 
     public String getOutputFile() {
         return outputFile;
@@ -83,12 +81,13 @@ public class Encoder {
         int progress = 0;
 
         // Loop through each word
-        for(String word : words) {
-            // Check if the word ends in punctuation, and if so, split them into two different variables
+        for (String word : words) {
+            // Check if the word ends in punctuation, and if so, split them into two
+            // different variables
             String punctuation = null;
-            if(word.matches(".*\\p{Punct}")) {
-                punctuation = String.valueOf(word.charAt(word.length()-1));
-                word = word.substring(0, word.length() -1);
+            if (word.matches(".*\\p{Punct}")) {
+                punctuation = String.valueOf(word.charAt(word.length() - 1));
+                word = word.substring(0, word.length() - 1);
             }
 
             // Call getIdentifiers to obtain the codes for the word
@@ -103,7 +102,7 @@ public class Encoder {
             }
 
             // If the word contained punctuation, add it at the end
-            if(punctuation != null) {
+            if (punctuation != null) {
                 identifiers = getIdentifiers(punctuation);
                 encodedArray[encodedArrayIndex] = identifiers[0];
                 encodedArrayIndex++;
@@ -160,7 +159,7 @@ public class Encoder {
                         identifiers[1] = Integer.parseInt(cipherMatrix[j][1]);
 
                         // Check if prefix + suffix is the actual word and not a false positive
-                        if(word.equals(cipherMatrix[i][0] + suffix)) {
+                        if (word.equals(cipherMatrix[i][0] + suffix)) {
                             return identifiers;
                         }
                     }
@@ -169,7 +168,7 @@ public class Encoder {
         }
 
         // If no match is found, 0 is returned
-        return new int[]{0, 0};
+        return new int[] { 0, 0 };
     }
 
     public void decodeFile() throws Exception {
@@ -177,50 +176,47 @@ public class Encoder {
         int[] codes = tfr.readEncryptedFile(inputFile);
         StringBuilder sb = new StringBuilder();
 
-
         // Read cipher file and populate the matrix
         readMappingFile();
 
         int progress = 0;
 
-        // Loop through all codes in the file
-        for(int c: codes) {
+        // We can use predefined knowledge about consiquence of codes 0 - 9'999
+        // so we can simlify algorithm of decoding
 
-            // If code is 0, append [???]
-            if(c == 0) {
-                sb.append("[???] ");
-                continue;
-            }
+        try {
+            // Loop through all codes in the file
+            for (int c : codes) {
 
-            // Loop through the cipher matrix
-            for (int i = cipherMatrix.length - 1; i > 0; i--) {
+                // get current token using corresponding code
+                var currentKey = cipherMatrix[c][0];
 
-                // Match
-                if(c == Integer.parseInt(cipherMatrix[i][1])) {
-
-                    // If cipher value starts with @@, remove last character from string builder
-                    // which will be an empty space and append the value without @@
-                    if(cipherMatrix[i][0].startsWith("@@")) {
-                        sb.deleteCharAt(sb.length() - 1);
-                        sb.append(cipherMatrix[i][0].substring(2) + " ");
-
-                        // If the current key is a punctuation, remove the last character
-                        // from string builder and append the punctuation
-                    } else if (cipherMatrix[i][0].matches("\\p{Punct}")){
-                        sb.deleteCharAt(sb.length() - 1);
-                        sb.append(cipherMatrix[i][0] + " ");
-                        // If none of the above, simply append the text to the string builder
-                    } else {
-                        sb.append(cipherMatrix[i][0] + " ");
-                    }
-                    break;
+                // If cipher value starts with @@, remove last character from string builder
+                // which will be an empty space and append the value without @@
+                if (currentKey.startsWith("@@")) {
+                    sb.deleteCharAt(sb.length() - 1);
+                    sb.append(currentKey.substring(2) + " ");
+                    continue;
                 }
-            }
+                // If the current key is a punctuation, remove the last character
+                // from string builder and append the punctuation
+                else if (currentKey.matches("\\p{Punct}")) {
+                    sb.deleteCharAt(sb.length() - 1);
+                    sb.append(currentKey + " ");
+                    continue;
+                } else {
+                    // If none of the above, simply append the text to the string builder
+                    sb.append(currentKey + " ");
+                }
 
-            // Print progress bar
-            System.out.print(ConsoleColour.YELLOW); // Change the colour of the console text
-            ProgressBar.printProgress(progress + 1, codes.length); // After each (some) steps, update the progress meter
-            progress++;
+                // Print progress bar
+                System.out.print(ConsoleColour.YELLOW); // Change the colour of the console text
+                ProgressBar.printProgress(progress + 1, codes.length); // After each (some) steps, update the progress
+                                                                       // meter
+                progress++;
+            }
+        } catch (Exception e) {
+            throw new Exception("Decoding error - wrong code!!!");
         }
 
         // Write output to the file
